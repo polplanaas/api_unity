@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gestió de Jugadors</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    input { margin: 5px; }
+    ul { list-style: none; padding: 0; }
+    li { margin: 5px 0; }
+    button { margin-left: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Jugadors</h1>
+  <ul id="llista"></ul>
+
+  <h2>Nova partida</h2>
+  <button id="botoNovaPartida">Crear nova partida</button>
+  <p id="numeroPartidaMostra"></p>
+
+  <h2>Afegir nou jugador</h2>
+  <form id="formulari">
+    <input type="text" id="nomGrup" placeholder="Nom del grup" required />
+    <button type="submit">Afegir</button>
+  </form>
+  <p id="missatge"></p>
+
+  <h2>Modificar claus d'un jugador</h2>
+  <form id="formulariClaus">
+    <input type="number" id="idGrupMod" placeholder="ID del jugador" required />
+    <input type="number" id="numeroClaus" placeholder="Número de claus" required />
+    <button type="submit">Modificar</button>
+  </form>
+
+  <h2>Netejar jugadors antics</h2>
+<button id="botoEsborraAntics">Esborra jugadors antics</button>
+<p id="missatgeAntics"></p>
+
+  <script>
+    //  CONFIGURACIÓ API
+    const API_BASE = "http://localhost:3000";
+    //const API_BASE = "https://.....onrender.com";
+    const API_JUGADORS = `${API_BASE}/jugadors`;
+    const API_NOVAPARTIDA = `${API_BASE}/novapartida`;
+
+    let numeroPartidaActual = 0;
+
+    //  Funció per convertir dates a format MySQL
+    function formatMySQLDate(date) {
+      const d = new Date(date);
+      return d.toISOString().slice(0, 19).replace("T", " ");
+    }
+
+    //  Carregar tots els jugadors
+    async function carregarJugadors() {
+      try {
+        const resposta = await fetch(API_JUGADORS);
+        const jugadors = await resposta.json();
+
+        const llista = document.getElementById("llista");
+        llista.innerHTML = "";
+
+        jugadors.forEach(j => {
+          const li = document.createElement("li");
+          li.textContent = `ID: ${j.idGrup} - Grup: ${j.nomGrup} - Claus: ${j.numeroClaus} - Partida: ${j.numeroPartida}`;
+          llista.appendChild(li);
+        });
+      } catch (error) {
+        console.error("Error carregant jugadors:", error);
+      }
+    }
+
+    carregarJugadors();
+
+    //  Crear nova partida
+    document.getElementById("botoNovaPartida").addEventListener("click", async () => {
+      try {
+        const resposta = await fetch(API_NOVAPARTIDA);
+        const dades = await resposta.json();
+
+        numeroPartidaActual = dades.codiPartida;
+        console.log (dades.codiPartida);
+        document.getElementById("numeroPartidaMostra").textContent =
+          `Número de partida actual: ${numeroPartidaActual}`;
+
+        console.log("Nova partida creada:", dades);
+      } catch (error) {
+        console.error("Error creant nova partida:", error);
+      }
+    });
+
+     //  Afegir un nou jugador
+    document.getElementById("formulari").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const nomGrup = document.getElementById("nomGrup").value;
+      const missatge = document.getElementById("missatge");
+
+      if (numeroPartidaActual === 0) {
+        alert("Has de crear una nova partida primer!");
+        return;
+      }
+
+      const dades = {
+        nomGrup,
+        numeroPartida: numeroPartidaActual,
+        numeroClaus: 0,
+        guanyador: 0,
+        dataPartida: formatMySQLDate(new Date()),
+        darreraConnexio: formatMySQLDate(new Date()),
+        darreraPosicioX: 0,
+        darreraPosicioY: 0
+      };
+
+      try {
+        const resposta = await fetch(API_JUGADORS, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(dades)
+        });
+
+        const resultat = await resposta.json();
+
+        if (resposta.ok) {
+          missatge.textContent = `Jugador "${resultat.nomGrup}" afegit (ID: ${resultat.idGrup})`;
+          missatge.className = "ok";
+        } else {
+          missatge.textContent = ` ${resultat.error}`;
+          missatge.className = "error";
+        }
+
+        carregarJugadors();
+        e.target.reset();
+      } catch (error) {
+        console.error("Error afegint jugador:", error);
+        missatge.textContent = "Error afegint jugador.";
+        missatge.className = "error";
+      }
+    });
+
+    //  Modificar claus d'un jugador
+    document.getElementById("formulariClaus").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const idGrup = document.getElementById("idGrupMod").value;
+      const numeroClaus = document.getElementById("numeroClaus").value;
+
+      const resposta = await fetch(`${API_JUGADORS}/${idGrup}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ numeroClaus })
+      });
+
+      const resultat = await resposta.json();
+      console.log(resultat);
+      carregarJugadors();
+      e.target.reset();
+    });
+
+
+
+    // Esborrar jugadors antics
+  document.getElementById("botoEsborraAntics").addEventListener("click", async () => {
+    const missatgeAntics = document.getElementById("missatgeAntics");
+
+    try {
+      const resposta = await fetch(`${API_JUGADORS}/antics`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}) // pots enviar una data opcional aquí
+      });
+
+      const resultat = await resposta.json();
+
+      if (resposta.ok) {
+        missatgeAntics.textContent = `Jugadors antics eliminats: ${resultat.eliminats}`;
+        missatgeAntics.className = "ok";
+      } else {
+        missatgeAntics.textContent = `Error: ${resultat.error}`;
+        missatgeAntics.className = "error";
+      }
+
+      // Recarreguem la llista de jugadors després d’esborrar
+      carregarJugadors();
+    } catch (error) {
+      console.error("Error esborrant jugadors antics:", error);
+      missatgeAntics.textContent = " Error esborrant jugadors antics.";
+      missatgeAntics.className = "error";
+    }
+  });
+  </script>
+</body>
+</html>
