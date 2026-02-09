@@ -87,12 +87,28 @@ app.get('/jugadors', async (req, res) => {
 
 
 // --------------------------------------
-// POST /jugadors → afegir un jugador
+// POST /jugadors → afegir un jugador amb control de partida
 // --------------------------------------
 app.post('/jugadors', async (req, res) => {
   try {
     const jugador = req.body
 
+    // 1️⃣ VALIDACIÓ: El número de partida existeix/és el correcte?
+    const { data: partidaData, error: partidaError } = await supabase
+      .from("CodiPartida")
+      .select("numero")
+      .eq("numero", jugador.numeroPartida) // Busquem si el número enviat està a la taula
+      .single()
+
+    // Si hi ha error o no troba cap fila amb aquest número
+    if (partidaError || !partidaData) {
+      console.warn(`Intent d'entrada amb codi de partida invàlid: ${jugador.numeroPartida}`);
+      return res.status(400).json({ 
+        error: "El codi de partida no és vàlid o la partida no existeix." 
+      });
+    }
+
+    // 2️⃣ Si el codi és correcte, procedim a fer l'INSERT
     const { data, error } = await supabase
       .from('Jugadors')
       .insert(jugador)
@@ -104,7 +120,7 @@ app.post('/jugadors', async (req, res) => {
       return res.status(400).json({ error: error.message })
     }
 
-    console.log("Nou jugador:", data)
+    console.log("Nou jugador validat i afegit:", data)
 
     return res.status(201).json({
       idGrup: data.idGrup,
@@ -121,50 +137,65 @@ app.post('/jugadors', async (req, res) => {
 
 
 // --------------------------------------
-// PUT /jugadors/:id → modificar claus
+// PUT /jugadors/:idGrup → actualitzar claus i guanyador
 // --------------------------------------
-app.put('/jugadors/:id', async (req, res) => {
-  const { numeroClaus } = req.body
+app.put('/jugadors/:idGrup', async (req, res) => {
+  // Extraiem els camps del body
+  const { numeroClaus, guanyador } = req.body
+  const idGrup = req.params.idGrup
 
   try {
     const { data, error } = await supabase
       .from('Jugadors')
-      .update({ numeroClaus })
-      .eq('idGrup', req.params.id)
-      .select('*')
-      .single()
+      .update({ 
+        numeroClaus: numeroClaus, 
+        guanyador: guanyador 
+      })
+      .eq('idGrup', idGrup)
+      .select()
 
-    if (error || !data) {
+    if (error || !data || data.length === 0) {
       return res.status(404).json({ error: "Jugador no trobat" })
     }
 
-    res.json(data)
+    // Retornem el missatge tal com demana la teva documentació
+    res.json({ message: "Jugador actualitzat correctament!" })
   } catch (e) {
+    console.error(e)
     res.status(500).json({ error: "Error intern servidor" })
   }
 })
 
-
 // --------------------------------------
-// DELETE /jugadors/antics → elimina jugadors sense connexió 24h
+// DELETE /jugadors/antics → elimina jugadors antics
 // --------------------------------------
 app.delete('/jugadors/antics', async (req, res) => {
   try {
-    const fa24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    // Si ve una data al body la fem servir, si no, fem servir la data d'avui
+    const dataLimit = req.body.data || new Date().toISOString().split('T')[0];
 
     const { data, error } = await supabase
       .from('Jugadors')
       .delete()
-      .lt('darreraConnexio', fa24h)
+      .lt('dataPartida', dataLimit) // lt = "less than" (anterior a la data indicada)
       .select()
 
-    if (error) return res.status(400).json({ error: error.message })
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
 
-    return res.status(200).json({ eliminats: data.length })
+    // Retornem la resposta exactament com demana la documentació
+    return res.status(200).json({
+      message: "Jugadors antics eliminats correctament.",
+      dataLimit: dataLimit,
+      eliminats: data ? data.length : 0
+    });
+
   } catch (e) {
-    return res.status(500).json({ error: "Error intern servidor" })
+    console.error("ERROR SERVIDOR:", e);
+    return res.status(500).json({ error: "Error intern servidor" });
   }
-})
+});
 
 
 // --------------------------------------
