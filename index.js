@@ -26,12 +26,12 @@ app.get('/', (req, res) => {
 
 
 // --------------------------------------
-// GET /novapartida → incrementa i retorna número de partida
+// GET /novapartida → incrementa número i NETEJA jugadors
 // --------------------------------------
 app.get("/novapartida", async (req, res) => {
   try {
 
-    // 1️⃣ Agafar número actual
+    // 1️⃣ Agafar el número de partida actual de la base de dades
     const { data, error: errorSelect } = await supabase
       .from("CodiPartida")
       .select("numero")
@@ -46,7 +46,7 @@ app.get("/novapartida", async (req, res) => {
     const numeroActual = data.numero
     const nouNumero = numeroActual + 1
 
-    // 2️⃣ Actualitzar número
+    // 2️⃣ Actualitzar el número a la taula per a la propera vegada
     const { error: errorUpdate } = await supabase
       .from("CodiPartida")
       .update({ numero: nouNumero })
@@ -57,7 +57,8 @@ app.get("/novapartida", async (req, res) => {
       return res.status(500).json({ error: errorUpdate.message })
     }
 
-    // 3️⃣ Retornar número nou
+    netejarJugadorsAntics();
+
     res.json({ codiPartida: nouNumero })
 
   } catch (e) {
@@ -177,7 +178,7 @@ app.delete('/jugadors/antics', async (req, res) => {
     const { data, error } = await supabase
       .from('Jugadors')
       .delete()
-      .lt('dataPartida', dataLimit) // lt = "less than" (anterior a la data indicada)
+      .lte('dataPartida', dataLimit) // lt = "less than" (anterior a la data indicada)
       .select()
 
     if (error) {
