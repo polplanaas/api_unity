@@ -171,7 +171,7 @@ app.put('/jugadors/:idGrup', async (req, res) => {
 app.delete('/jugadors/antics', async (req, res) => {
   try {
 
-    const dataBase = req.body?.data || new Date().toISOString().split('T')[0];
+    const dataBase = req.body?.data || new Date().toLocaleDateString('sv-SE');
     const dataLimit = dataBase + 'T23:59:59';
 
     const { data, error } = await supabase
