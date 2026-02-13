@@ -84,30 +84,33 @@ app.get('/jugadors', async (req, res) => {
   }
 })
 
-
-// --------------------------------------
-// POST /jugadors → afegir un jugador amb control de partida
+// -------------------------------------- 
+// POST /jugadors → afegir un jugador amb control de partida 
 // --------------------------------------
 app.post('/jugadors', async (req, res) => {
   try {
     const jugador = req.body
 
-    // 1️⃣ VALIDACIÓ: El número de partida existeix/és el correcte?
-    const { data: partidaData, error: partidaError } = await supabase
+    // 1️⃣ Obtenir l'última partida creada
+    const { data: ultimaPartida, error: partidaError } = await supabase
       .from("CodiPartida")
       .select("numero")
-      .eq("numero", jugador.numeroPartida) // Busquem si el número enviat està a la taula
+      .order("numero", { ascending: false })
+      .limit(1)
       .single()
 
-    // Si hi ha error o no troba cap fila amb aquest número
-    if (partidaError || !partidaData) {
-      console.warn(`Intent d'entrada amb codi de partida invàlid: ${jugador.numeroPartida}`);
-      return res.status(400).json({ 
-        error: "El codi de partida no és vàlid o la partida no existeix." 
+    if (partidaError) {
+      return res.status(500).json({ error: "Error comprovant partida" })
+    }
+
+    // 2️⃣ Validar que no sigui més gran que l'última
+    if (jugador.numeroPartida > ultimaPartida.numero) {
+      return res.status(400).json({
+        error: "El número de partida és superior a l'última partida creada."
       });
     }
 
-    // 2️⃣ Si el codi és correcte, procedim a fer l'INSERT
+    // 3️⃣ Inserim jugador
     const { data, error } = await supabase
       .from('Jugadors')
       .insert(jugador)
@@ -115,11 +118,8 @@ app.post('/jugadors', async (req, res) => {
       .single()
 
     if (error) {
-      console.error("SUPABASE ERROR:", error)
       return res.status(400).json({ error: error.message })
     }
-
-    console.log("Nou jugador validat i afegit:", data)
 
     return res.status(201).json({
       idGrup: data.idGrup,
@@ -133,7 +133,6 @@ app.post('/jugadors', async (req, res) => {
     return res.status(500).json({ error: "Error intern servidor" })
   }
 })
-
 
 // --------------------------------------
 // PUT /jugadors/:idGrup → actualitzar claus i guanyador
