@@ -170,20 +170,20 @@ app.put('/jugadors/:idGrup', async (req, res) => {
 // --------------------------------------
 app.delete('/jugadors/antics', async (req, res) => {
   try {
-    // Si ve una data al body la fem servir, si no, fem servir la data d'avui
-    const dataLimit = req.body.data || new Date().toISOString().split('T')[0];
+
+    const dataBase = req.body?.data || new Date().toISOString().split('T')[0];
+    const dataLimit = dataBase + 'T23:59:59';
 
     const { data, error } = await supabase
       .from('Jugadors')
       .delete()
-      .lte('dataPartida', dataLimit  + 'T23:59:59') //Fico aixi perque quant crei la partida s'eliminin tots els registras anteriors
-      .select()
+      .lte('dataPartida', dataLimit)
+      .select();
 
     if (error) {
       return res.status(400).json({ error: error.message });
     }
 
-    // Retornem la resposta exactament com demana la documentació
     return res.status(200).json({
       message: "Jugadors antics eliminats correctament.",
       dataLimit: dataLimit,
@@ -195,7 +195,6 @@ app.delete('/jugadors/antics', async (req, res) => {
     return res.status(500).json({ error: "Error intern servidor" });
   }
 });
-
 
 // --------------------------------------
 // INICI SERVIDOR
