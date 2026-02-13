@@ -57,8 +57,6 @@ app.get("/novapartida", async (req, res) => {
       return res.status(500).json({ error: errorUpdate.message })
     }
 
-    netejarJugadorsAntics();
-
     res.json({ codiPartida: nouNumero })
 
   } catch (e) {
@@ -178,7 +176,7 @@ app.delete('/jugadors/antics', async (req, res) => {
     const { data, error } = await supabase
       .from('Jugadors')
       .delete()
-      .lte('dataPartida', dataLimit) // lt = "less than" (anterior a la data indicada)
+      .lte('dataPartida', dataLimit  + 'T23:59:59') //Fico aixi perque quant crei la partida s'eliminin tots els registras anteriors
       .select()
 
     if (error) {
