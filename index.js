@@ -177,7 +177,7 @@ app.delete('/jugadors/antics', async (req, res) => {
     const { data, error } = await supabase
       .from('Jugadors')
       .delete()
-      .lte('dataPartida', dataLimit)
+      .lt('dataPartida', dataLimit)
       .select();
 
     if (error) {
