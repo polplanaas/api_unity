@@ -171,7 +171,7 @@ app.delete('/jugadors/antics', async (req, res) => {
   try {
 
     const dataBase = req.body?.data || new Date().toLocaleDateString('sv-SE');
-    const dataLimit = dataBase + 'T23:59:59';
+    const dataLimit = dataBase + 'T00:00:00';
 
     const { data, error } = await supabase
       .from('Jugadors')
