@@ -170,8 +170,12 @@ app.put('/jugadors/:idGrup', async (req, res) => {
 app.delete('/jugadors/antics', async (req, res) => {
   try {
 
-    const dataBase = req.body?.data || new Date().toLocaleDateString('sv-SE');
-    const dataLimit = dataBase + 'T00:00:00';
+    // Agafem avui en UTC i deixem només la data
+    const avuiUTC = new Date();
+    const dataBase = req.body?.data || avuiUTC.toISOString().split('T')[0];
+
+    // Inici del dia
+    const dataLimit = dataBase + 'T00:00:00.000Z';
 
     const { data, error } = await supabase
       .from('Jugadors')
@@ -194,6 +198,7 @@ app.delete('/jugadors/antics', async (req, res) => {
     return res.status(500).json({ error: "Error intern servidor" });
   }
 });
+
 
 // --------------------------------------
 // INICI SERVIDOR
