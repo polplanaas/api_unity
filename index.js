@@ -30,40 +30,53 @@ app.get('/', (req, res) => {
 // --------------------------------------
 app.get("/novapartida", async (req, res) => {
   try {
+    // 1️⃣ NETEJA: Eliminar jugadors que no siguin d'avui abans de començar
+    const avui = new Date().toISOString().split('T')[0]; // Format YYYY-MM-DD
+    const iniciDia = avui + 'T00:00:00.000Z';
 
-    // 1️⃣ Agafar el número de partida actual de la base de dades
+    const { error: errorDelete } = await supabase
+      .from('Jugadors')
+      .delete()
+      .lt('dataPartida', iniciDia); // Elimina si la data és anterior a avui a les 00:00
+
+    if (errorDelete) {
+      console.error("Error netejant jugadors antics:", errorDelete);
+      // Opcional: pots decidir si vols aturar el procés o continuar
+    }
+
+    // 2️⃣ Agafar el número de partida actual
     const { data, error: errorSelect } = await supabase
       .from("CodiPartida")
       .select("numero")
       .limit(1)
-      .single()
+      .single();
 
     if (errorSelect) {
-      console.error(errorSelect)
-      return res.status(500).json({ error: errorSelect.message })
+      return res.status(500).json({ error: errorSelect.message });
     }
 
-    const numeroActual = data.numero
-    const nouNumero = numeroActual + 1
+    const nouNumero = data.numero + 1;
 
-    // 2️⃣ Actualitzar el número a la taula per a la propera vegada
+    // 3️⃣ Actualitzar el número a la taula
     const { error: errorUpdate } = await supabase
       .from("CodiPartida")
       .update({ numero: nouNumero })
-      .eq("numero", numeroActual)
+      .eq("numero", data.numero);
 
     if (errorUpdate) {
-      console.error(errorUpdate)
-      return res.status(500).json({ error: errorUpdate.message })
+      return res.status(500).json({ error: errorUpdate.message });
     }
 
-    res.json({ codiPartida: nouNumero })
+    res.json({ 
+      codiPartida: nouNumero,
+      missatge: "Nova partida creada i jugadors antics eliminats." 
+    });
 
   } catch (e) {
-    console.error(e)
-    res.status(500).json({ error: "Error intern", detalls: e.message })
+    console.error(e);
+    res.status(500).json({ error: "Error intern", detalls: e.message });
   }
-})
+});
 
 
 // --------------------------------------
